@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+# Secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# OS junk
+.DS_Store
+
+# Debate transcripts — local artifacts, not source
+debates/
+

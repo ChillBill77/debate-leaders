@@ -1,0 +1,25 @@
+{
+  "name": "p3agents",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "debate": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@types/node": "^25.6.0",
+    "dotenv": "^17.4.2",
+    "openai": "^6.34.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}
+

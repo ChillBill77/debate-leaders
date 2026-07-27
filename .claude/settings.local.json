@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(pkill -f \"tsx src/debate.ts\")",
+      "Bash(OPENAI_LOG=debug ANTHROPIC_LOG=debug npm run *)",
+      "Bash(node --import tsx -e ' *)",
+      "Bash(npm test *)",
+      "Bash(node --import tsx -e 'const m=await import\\(\"./src/personas/index.ts\"\\); console.log\\(\"registry loads:\", Object.keys\\(m.FOUNDER_PERSONAS\\).length, \"personas\"\\)')"
+    ]
+  }
+}
