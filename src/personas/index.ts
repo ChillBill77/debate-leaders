@@ -19,6 +19,31 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import type { Persona } from "./types.js";
 
+/** Walk `dir` recursively, returning the basename-key + absolute file URL for
+ *  every `.ts`/`.js` file that isn't `index`/`types` or an `_`-prefixed
+ *  template/helper. Subfolders (e.g. `NL_Parties/`) are descended into so
+ *  personas can be grouped in directories; the key is still the bare filename
+ *  so `--personas vvd` works regardless of which folder the file lives in. */
+async function collectPersonaFiles(
+  dir: string
+): Promise<Array<{ key: string; url: string }>> {
+  const out: Array<{ key: string; url: string }> = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = resolve(dir, entry.name);
+    if (entry.isDirectory()) {
+      out.push(...(await collectPersonaFiles(full)));
+      continue;
+    }
+    if (!/\.(ts|js)$/.test(entry.name)) continue;
+    const base = entry.name.replace(/\.(ts|js)$/, "");
+    if (base === "index" || base === "types" || base.startsWith("_")) continue;
+    // Keys are lowercased so CLI/MCP lookups (which lowercase their input)
+    // match regardless of filename casing — e.g. `NL_VVD.ts` → key `nl_vvd`.
+    out.push({ key: base.toLowerCase(), url: pathToFileURL(full).href });
+  }
+  return out;
+}
+
 export type { Persona } from "./types.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -34,35 +59,37 @@ function isPersona(v: unknown): v is Persona {
   return typeof p.model === "string" || typeof p.openrouterModel === "string";
 }
 
+/** Default OpenRouter slug for Dutch-party personas (keys prefixed `nl_`,
+ *  grouped under `personas/NL_Parties/`). A persona in that group that doesn't
+ *  set its own `openrouterModel` speaks through Kimi K3. */
+const NL_PARTY_DEFAULT_MODEL = "moonshotai/kimi-k3";
+
 async function discoverPersonas(): Promise<Record<string, Persona>> {
-  const entries = await readdir(here);
-  // Sort for deterministic panel order. Users can prefix filenames with
+  // Sort by key for deterministic panel order. Users can prefix filenames with
   // numbers (e.g. `01-jensen.ts`) to override default alphabetical ordering.
-  const files = entries
-    .filter((f) => /\.(ts|js)$/.test(f))
-    .filter((f) => {
-      const base = f.replace(/\.(ts|js)$/, "");
-      return base !== "index" && base !== "types" && !base.startsWith("_");
-    })
-    .sort();
+  const files = (await collectPersonaFiles(here)).sort((a, b) =>
+    a.key < b.key ? -1 : a.key > b.key ? 1 : 0
+  );
 
   const registry: Record<string, Persona> = {};
-  for (const f of files) {
-    const key = f.replace(/\.(ts|js)$/, "");
-    const url = pathToFileURL(resolve(here, f)).href;
+  for (const { key, url } of files) {
     try {
       const mod = (await import(url)) as Record<string, unknown>;
       const persona = Object.values(mod).find(isPersona);
       if (persona) {
+        // NL_ party personas default to Kimi K3 unless they pin their own slug.
+        if (key.startsWith("nl_") && !persona.openrouterModel) {
+          persona.openrouterModel = NL_PARTY_DEFAULT_MODEL;
+        }
         registry[key] = persona;
       } else {
         console.error(
-          `⚠️  Skipping personas/${f} — no export matched the Persona shape.`
+          `⚠️  Skipping personas/${key} — no export matched the Persona shape.`
         );
       }
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      console.error(`⚠️  Failed to load personas/${f}: ${reason}`);
+      console.error(`⚠️  Failed to load personas/${key}: ${reason}`);
     }
   }
   return registry;
